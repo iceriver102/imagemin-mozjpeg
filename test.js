@@ -1,35 +1,39 @@
-import {promises as fs} from 'node:fs';
-import isJpg from 'is-jpg';
-import isProgressive from 'is-progressive';
-import test from 'ava';
-import imageminMozjpeg from './index.js';
+const {promisify} = require('util');
+const fs = require('fs');
+const path = require('path');
+const isJpg = require('is-jpg');
+const isProgressive = require('is-progressive');
+const test = require('ava');
+const m = require('.');
+
+const readFile = promisify(fs.readFile);
 
 test('optimize a JPG', async t => {
-	const buffer = await fs.readFile(new URL('fixture.jpg', import.meta.url));
-	const data = await imageminMozjpeg()(buffer);
+	const buf = await readFile(path.join(__dirname, 'fixture.jpg'));
+	const data = await m()(buf);
 
-	t.true(data.length < buffer.length);
+	t.true(data.length < buf.length);
 	t.true(isJpg(data));
 	t.true(isProgressive.buffer(data));
 });
 
 test('support mozjpeg options', async t => {
-	const buffer = await fs.readFile(new URL('fixture.jpg', import.meta.url));
-	const data = await imageminMozjpeg({progressive: false})(buffer);
+	const buf = await readFile(path.join(__dirname, 'fixture.jpg'));
+	const data = await m({progressive: false})(buf);
 
 	t.false(isProgressive.buffer(data));
 });
 
 test('skip optimizing a non-JPG file', async t => {
-	const buffer = await fs.readFile(new URL(import.meta.url));
-	const data = await imageminMozjpeg()(buffer);
+	const buf = await readFile(__filename);
+	const data = await m()(buf);
 
-	t.deepEqual(data, buffer);
+	t.deepEqual(data, buf);
 });
 
 test('throw error when a JPG is corrupt', async t => {
-	const buffer = await fs.readFile(new URL('fixture-corrupt.jpg', import.meta.url));
+	const buf = await readFile(path.join(__dirname, 'fixture-corrupt.jpg'));
 	await t.throwsAsync(async () => {
-		await imageminMozjpeg()(buffer);
+		await m()(buf);
 	}, {message: /Corrupt JPEG data/});
 });
